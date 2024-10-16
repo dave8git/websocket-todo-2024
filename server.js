@@ -1,35 +1,37 @@
 const socket = require('socket.io');
 const express = require('express'); 
 const app = express();
-const tasks = [];
+let tasks = []; // Make sure it's mutable
 
 const server = app.listen(8000, () => {
-    console.log('Server is running on Port:', 8000)
-});
-
-app.use((req, res) => {
-    res.status(404).send({ message: 'Not found...' });
+    console.log('Server is running on Port:', 8000);
 });
 
 const io = socket(server);
 
 io.on('connection', (socket) => {
     console.log('New client! Its id – ' + socket.id);
-    socket.on('message', () => { console.log('Oh, I\'ve got something from ' + socket.id) });
-    console.log('I\'ve added a listener on message event \n');
 
-    socket.broadcast.emit('updateData', tasks);
+    socket.emit('updateData', tasks);
 
     socket.on('addTask', (task) => {
-        tasks.push(task);
-        socket.broadcast.emit('message', {author: 'Chat-Bot', content: 'task dodany'});
+        tasks.push(task); 
+        io.emit('addTask', task);
     });
 
-    socket.on('removeTask', (id) => {
-        socket.broadcast.emit('message', {author: 'Chat-Bot', content: 'task usunięty'});
+    socket.on('removeTask', (taskId) => {
+        const taskIndex = tasks.findIndex(task => task.id === taskId);
+        if (taskIndex !== -1) {
+            tasks.splice(taskIndex, 1); 
+            io.emit('removeTask', taskId);
+        }
     });
 
     socket.on('disconnect', () => {
         console.log('User disconnected');
     });
+});
+
+app.use((req, res) => {
+    res.status(404).send({ message: 'Not found...' });
 });
